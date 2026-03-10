@@ -14,6 +14,7 @@ type ContextMenuState =
 export function TableViewLayout() {
   const loadedTable = useAppStore((state) => state.loadedTable)
   const sortByColumn = useAppStore((state) => state.sortByColumn)
+  const openQueryEditor = useAppStore((state) => state.openQueryEditor)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
@@ -197,9 +198,12 @@ export function TableViewLayout() {
             Refresh data
           </button>
           <button
-            className="w-full text-left px-3 py-1 text-[#a19f9d]"
+            className="w-full text-left px-3 py-1 hover:bg-[#e5f0ff]"
             type="button"
-            disabled
+            onClick={() => {
+              openQueryEditor()
+              setContextMenu(null)
+            }}
           >
             Edit query
           </button>

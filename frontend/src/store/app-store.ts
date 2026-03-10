@@ -14,11 +14,15 @@ type AppState = {
   setLoadedTable: (table: { name: string; headers: string[]; rows: string[][] }) => void
   sortByColumn: (columnIndex: number, direction: 'asc' | 'desc') => void
   clearSort: () => void
+  isQueryEditorOpen: boolean
+  openQueryEditor: () => void
+  closeQueryEditor: () => void
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   activeView: 'report',
   loadedTable: null,
+  isQueryEditorOpen: false,
 
   setActiveView: (view) => set({ activeView: view }),
 
@@ -64,5 +68,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       },
     })
   },
+  openQueryEditor: () => set({ isQueryEditorOpen: true }),
+  closeQueryEditor: () => set({ isQueryEditorOpen: false }),
 }))
 

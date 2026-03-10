@@ -8,6 +8,7 @@ import { BottomBar } from './components/bottom-bar'
 import { GetDataModal } from './components/get-data-modal'
 import { CsvPreviewModal } from './components/csv-preview-modal'
 import { LoadStatusModal } from './components/load-status-modal'
+import { QueryEditorModal } from './components/query-editor-modal'
 import { useAppStore } from './store/app-store'
 
 function App() {
@@ -24,6 +25,9 @@ function App() {
   const activeView = useAppStore((state) => state.activeView)
   const setActiveView = useAppStore((state) => state.setActiveView)
   const setLoadedTable = useAppStore((state) => state.setLoadedTable)
+  const loadedTable = useAppStore((state) => state.loadedTable)
+  const isQueryEditorOpen = useAppStore((state) => state.isQueryEditorOpen)
+  const closeQueryEditor = useAppStore((state) => state.closeQueryEditor)
 
   const handleImportCsv = (file: File) => {
     const reader = new FileReader()
@@ -103,6 +107,14 @@ function App() {
         isOpen={isLoadingData}
         tableName={currentTableName ?? undefined}
         onCancel={() => setIsLoadingData(false)}
+      />
+
+      <QueryEditorModal
+        isOpen={isQueryEditorOpen}
+        onClose={closeQueryEditor}
+        tableName={loadedTable?.name ?? ''}
+        headers={loadedTable?.headers ?? []}
+        rows={loadedTable?.rows ?? []}
       />
 
     </div>
