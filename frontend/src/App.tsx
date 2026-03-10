@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import Papa from "papaparse";
+import alasql from "alasql";
 
 import { Ribbon } from "./components/ribbon";
 import { LeftNav } from "./components/left-nav";
@@ -11,6 +12,7 @@ import { GetDataModal } from "./components/get-data-modal";
 import { CsvPreviewModal } from "./components/csv-preview-modal";
 import { LoadStatusModal } from "./components/load-status-modal";
 import { QueryEditorModal } from "./components/query-editor-modal";
+import { SqlQueryModal } from "./components/sql-query-modal";
 
 import { useAppStore } from "./store/app-store";
 
@@ -31,11 +33,15 @@ function App() {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [hasLoadedData, setHasLoadedData] = useState(false);
   const [currentTableName, setCurrentTableName] = useState<string | null>(null);
+  const [isSqlOpen, setIsSqlOpen] = useState(false);
 
   const activeView = useAppStore((state) => state.activeView);
   const setActiveView = useAppStore((state) => state.setActiveView);
   const setLoadedTable = useAppStore((state) => state.setLoadedTable);
   const loadedTable = useAppStore((state) => state.loadedTable);
+  const setQueryResult = useAppStore((state) => state.setQueryResult);
+
+  const [sqlError, setSqlError] = useState<string | null>(null);
 
   const isQueryEditorOpen = useAppStore((state) => state.isQueryEditorOpen);
   const closeQueryEditor = useAppStore((state) => state.closeQueryEditor);
@@ -118,6 +124,66 @@ function App() {
     });
   };
 
+  const handleRunSql = (query: string) => {
+    if (!loadedTable) {
+      setSqlError("No table loaded. Import CSV first.");
+      return;
+    }
+
+    const sourceRows = loadedTable.originalRows ?? loadedTable.rows;
+    const rowsAsObjects = sourceRows.map((row) =>
+      Object.fromEntries(
+        loadedTable.headers.map((header, idx) => [header, row[idx]]),
+      ),
+    );
+
+    try {
+      const results = alasql(query, [rowsAsObjects]);
+
+      let headers: string[] = [];
+      let rows: string[][] = [];
+
+      if (Array.isArray(results)) {
+        if (results.length === 0) {
+          headers = loadedTable.headers;
+          rows = [];
+        } else if (typeof results[0] === "object" && results[0] !== null) {
+          headers = Array.from(
+            results.reduce((acc, row) => {
+              Object.keys(row).forEach((key) => acc.add(key));
+              return acc;
+            }, new Set<string>()),
+          );
+          rows = results.map((row) =>
+            headers.map((h) => String((row as any)[h] ?? "")),
+          );
+        } else {
+          headers = ["value"];
+          rows = results.map((value) => [String(value)]);
+        }
+      } else if (typeof results === "object" && results !== null) {
+        headers = Object.keys(results as Record<string, unknown>);
+        rows = [headers.map((h) => String((results as any)[h] ?? ""))];
+      } else {
+        headers = ["Result"];
+        rows = [[String(results)]];
+      }
+
+      setQueryResult({
+        name: `${loadedTable.name} (query)`,
+        headers,
+        rows,
+      });
+      setSqlError(null);
+      setIsSqlOpen(false);
+    } catch (err) {
+      console.error("SQL error", err);
+      setSqlError(
+        err instanceof Error ? err.message : "Failed to run SQL query",
+      );
+    }
+  };
+
   return (
     <div className="h-full flex flex-col bg-[#f3f2f1]">
       <Ribbon />
@@ -134,7 +200,7 @@ function App() {
             />
           )
         ) : (
-          <TableViewLayout />
+          <TableViewLayout onOpenSql={() => setIsSqlOpen(true)} />
         )}
       </div>
 
@@ -172,6 +238,16 @@ function App() {
         tableName={loadedTable?.name ?? ""}
         headers={loadedTable?.headers ?? []}
         rows={loadedTable?.rows ?? []}
+      />
+
+      <SqlQueryModal
+        isOpen={isSqlOpen}
+        onClose={() => {
+          setIsSqlOpen(false);
+          setSqlError(null);
+        }}
+        onRun={handleRunSql}
+        error={sqlError ?? undefined}
       />
     </div>
   );

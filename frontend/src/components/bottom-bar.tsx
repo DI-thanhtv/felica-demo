@@ -15,6 +15,5 @@ export function BottomBar() {
       </div>
       <div className="ml-auto text-[#605e5c]">Page 1 of 1</div>
     </footer>
-  )
+  );
 }
-

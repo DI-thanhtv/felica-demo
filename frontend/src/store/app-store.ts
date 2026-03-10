@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 type LoadedTable = {
   name: string
+  originalName: string
   headers: string[]
   rows: string[][]
   originalRows: string[][]
@@ -12,6 +13,8 @@ type AppState = {
   loadedTable: LoadedTable | null
   setActiveView: (view: 'report' | 'table') => void
   setLoadedTable: (table: { name: string; headers: string[]; rows: string[][] }) => void
+  setQueryResult: (table: { name: string; headers: string[]; rows: string[][] }) => void
+  resetToOriginal: () => void
   sortByColumn: (columnIndex: number, direction: 'asc' | 'desc') => void
   clearSort: () => void
   isQueryEditorOpen: boolean
@@ -30,10 +33,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       loadedTable: {
         name: table.name,
+        originalName: table.name,
         headers: table.headers,
         rows: table.rows,
         originalRows: table.rows,
       },
+    }),
+
+  setQueryResult: (table) =>
+    set((state) => {
+      const originalRows = state.loadedTable?.originalRows ?? table.rows
+      const originalName = state.loadedTable?.originalName ?? table.name
+      return {
+        loadedTable: {
+          name: `${originalName} (query)`,
+          originalName,
+          headers: table.headers,
+          rows: table.rows,
+          originalRows,
+        },
+      }
+    }),
+
+  resetToOriginal: () =>
+    set((state) => {
+      if (!state.loadedTable) return state
+      return {
+        loadedTable: {
+          ...state.loadedTable,
+          name: state.loadedTable.originalName,
+          rows: state.loadedTable.originalRows,
+        },
+      }
     }),
 
   sortByColumn: (columnIndex, direction) =>

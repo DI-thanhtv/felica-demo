@@ -10,9 +10,14 @@ type ContextMenuState = {
   rowIndex?: number;
 } | null;
 
-export function TableViewLayout() {
+type TableViewLayoutProps = {
+  onOpenSql?: () => void;
+};
+
+export function TableViewLayout({ onOpenSql }: TableViewLayoutProps) {
   const loadedTable = useAppStore((state) => state.loadedTable);
   const sortByColumn = useAppStore((state) => state.sortByColumn);
+  const resetToOriginal = useAppStore((state) => state.resetToOriginal);
   const openQueryEditor = useAppStore((state) => state.openQueryEditor);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
 
@@ -99,6 +104,23 @@ export function TableViewLayout() {
             value={displayName}
             readOnly
           />
+
+          <button
+            className="h-7 px-2 rounded border border-[#a19f9d] bg-white text-[#323130] text-xs hover:bg-[#f3f2f1] disabled:opacity-50 disabled:cursor-not-allowed"
+            type="button"
+            onClick={() => onOpenSql?.()}
+            disabled={!loadedTable}
+          >
+            SQL
+          </button>
+          <button
+            className="h-7 px-2 rounded border border-[#a19f9d] bg-white text-[#323130] text-xs hover:bg-[#f3f2f1] disabled:opacity-50 disabled:cursor-not-allowed"
+            type="button"
+            onClick={resetToOriginal}
+            disabled={!loadedTable}
+          >
+            Reset
+          </button>
         </div>
       </div>
 
