@@ -2,16 +2,48 @@ import { useState } from 'react'
 import { Ribbon } from './components/ribbon'
 import { LeftNav } from './components/left-nav'
 import { ReportEmptyCanvas } from './components/report-empty-canvas'
+import { ReportBuildVisualsCanvas } from './components/report-build-visuals-canvas'
+import { TableViewLayout } from './components/table-view-layout'
 import { BottomBar } from './components/bottom-bar'
 import { GetDataModal } from './components/get-data-modal'
+import { CsvPreviewModal } from './components/csv-preview-modal'
+import { LoadStatusModal } from './components/load-status-modal'
+import { useAppStore } from './store/app-store'
 
 function App() {
   const [isGetDataOpen, setIsGetDataOpen] = useState(false)
-  const [lastCsvFileName, setLastCsvFileName] = useState<string | null>(null)
+  const [csvPreview, setCsvPreview] = useState<{
+    fileName: string
+    headers: string[]
+    rows: string[][]
+  } | null>(null)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const [hasLoadedData, setHasLoadedData] = useState(false)
+  const [currentTableName, setCurrentTableName] = useState<string | null>(null)
+
+  const activeView = useAppStore((state) => state.activeView)
+  const setActiveView = useAppStore((state) => state.setActiveView)
+  const setLoadedTable = useAppStore((state) => state.setLoadedTable)
 
   const handleImportCsv = (file: File) => {
-    setLastCsvFileName(file.name)
-    // chỗ này sau này có thể parse và xử lý dữ liệu CSV
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = (event.target?.result as string) || ''
+      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
+      if (!lines.length) return
+
+      const [headerLine, ...dataLines] = lines
+      const headers = headerLine.split(',')
+      const rows = dataLines.slice(0, 200).map((line) => line.split(','))
+
+      setCsvPreview({
+        fileName: file.name,
+        headers,
+        rows,
+      })
+      setIsGetDataOpen(false)
+    }
+    reader.readAsText(file)
   }
 
   return (
@@ -20,8 +52,16 @@ function App() {
 
       {/* Main area */}
       <div className="flex flex-1 overflow-hidden">
-        <LeftNav />
-        <ReportEmptyCanvas onRequestGetData={() => setIsGetDataOpen(true)} />
+        <LeftNav activeView={activeView} onChangeView={setActiveView} />
+        {activeView === 'report' ? (
+          hasLoadedData ? (
+            <ReportBuildVisualsCanvas />
+          ) : (
+            <ReportEmptyCanvas onRequestGetData={() => setIsGetDataOpen(true)} />
+          )
+        ) : (
+          <TableViewLayout />
+        )}
       </div>
 
       <BottomBar />
@@ -33,11 +73,38 @@ function App() {
         onImportCsv={handleImportCsv}
       />
 
-      {lastCsvFileName && (
-        <div className="absolute bottom-12 left-1/2 -translate-x-1/2 px-3 py-1 rounded bg-black/60 text-xs text-white">
-          Last CSV imported: {lastCsvFileName}
-        </div>
-      )}
+      {/* CSV preview modal */}
+      <CsvPreviewModal
+        isOpen={!!csvPreview}
+        onClose={() => setCsvPreview(null)}
+        fileName={csvPreview?.fileName ?? ''}
+        headers={csvPreview?.headers ?? []}
+        rows={csvPreview?.rows ?? []}
+        onLoad={() => {
+          if (!csvPreview) return
+          const baseName = csvPreview.fileName.replace(/\.[^.]+$/, '')
+          setCurrentTableName(baseName)
+          setLoadedTable({
+            name: baseName,
+            headers: csvPreview.headers,
+            rows: csvPreview.rows,
+          })
+          setCsvPreview(null)
+          setIsLoadingData(true)
+          setTimeout(() => {
+            setIsLoadingData(false)
+            setHasLoadedData(true)
+          }, 1000)
+        }}
+      />
+
+      {/* Loading modal */}
+      <LoadStatusModal
+        isOpen={isLoadingData}
+        tableName={currentTableName ?? undefined}
+        onCancel={() => setIsLoadingData(false)}
+      />
+
     </div>
   )
 }

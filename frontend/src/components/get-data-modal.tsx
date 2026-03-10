@@ -65,8 +65,10 @@ export function GetDataModal({
 
   const handleClickConnector = (connector: Connector) => {
     setActiveConnectorId(connector.id)
+  }
 
-    if (connector.id === 'text_csv' && connector.isEnabled) {
+  const handleConnectClick = () => {
+    if (activeConnectorId === 'text_csv') {
       fileInputRef.current?.click()
     }
   }
@@ -169,7 +171,15 @@ export function GetDataModal({
           <button className="px-3 py-1 text-xs text-[#0078d4] hover:underline">
             Template Apps
           </button>
-          <button className="px-4 py-1 text-xs rounded bg-[#107c10] text-white font-semibold">
+          <button
+            className={`px-4 py-1 text-xs rounded font-semibold ${
+              activeConnectorId === 'text_csv'
+                ? 'bg-[#107c10] text-white'
+                : 'bg-[#c8c6c4] text-white cursor-default'
+            }`}
+            type="button"
+            onClick={handleConnectClick}
+          >
             Connect
           </button>
           <button
