@@ -1,13 +1,19 @@
 type LoadStatusModalProps = {
-  isOpen: boolean
-  tableName?: string
-  onCancel: () => void
-}
+  isOpen: boolean;
+  tableName?: string;
+  progress?: number;
+  onCancel: () => void;
+};
 
-export function LoadStatusModal({ isOpen, tableName, onCancel }: LoadStatusModalProps) {
-  if (!isOpen) return null
+export function LoadStatusModal({
+  isOpen,
+  tableName,
+  progress,
+  onCancel,
+}: LoadStatusModalProps) {
+  if (!isOpen) return null;
 
-  const displayName = tableName || 'Table'
+  const displayName = tableName || "Table";
 
   return (
     <div className="fixed inset-0 bg-black/10 flex items-center justify-center z-40">
@@ -27,7 +33,11 @@ export function LoadStatusModal({ isOpen, tableName, onCancel }: LoadStatusModal
             <div className="mt-1 h-3 w-3 rounded-full border-2 border-[#107c10] border-t-transparent animate-spin" />
             <div>
               <div className="font-semibold">{displayName}</div>
-              <div className="text-xs text-[#605e5c] mt-1">Syncing schema...</div>
+              <div className="text-xs text-[#605e5c] mt-1">
+                {progress != null
+                  ? `Loading ${progress.toLocaleString()} rows...`
+                  : "Syncing schema..."}
+              </div>
             </div>
           </div>
         </div>
@@ -42,6 +52,5 @@ export function LoadStatusModal({ isOpen, tableName, onCancel }: LoadStatusModal
         </div>
       </div>
     </div>
-  )
+  );
 }
-

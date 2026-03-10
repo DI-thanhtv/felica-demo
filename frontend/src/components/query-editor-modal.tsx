@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from "react";
+import { List, type RowComponentProps } from "react-window";
 
 type QueryEditorModalProps = {
-  isOpen: boolean
-  onClose: () => void
-  tableName: string
-  headers: string[]
-  rows: string[][]
-}
+  isOpen: boolean;
+  onClose: () => void;
+  tableName: string;
+  headers: string[];
+  rows: string[][];
+};
 
 export function QueryEditorModal({
   isOpen,
@@ -15,70 +16,130 @@ export function QueryEditorModal({
   headers,
   rows,
 }: QueryEditorModalProps) {
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
-  const displayName = tableName || 'Table'
-  const [editorRows, setEditorRows] = useState(rows)
-  const containerRef = useRef<HTMLDivElement | null>(null)
+  const displayName = tableName || "Table";
+  const [editorRows, setEditorRows] = useState(rows);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [contextMenu, setContextMenu] = useState<{
-    clientX: number
-    clientY: number
-    rowIndex: number
-    colIndex: number
-  } | null>(null)
+    clientX: number;
+    clientY: number;
+    rowIndex: number;
+    colIndex: number;
+  } | null>(null);
   const [replaceDialog, setReplaceDialog] = useState<{
-    isOpen: boolean
-    columnIndex: number
-    initialValue: string
-  } | null>(null)
-  const [replaceFrom, setReplaceFrom] = useState('')
-  const [replaceTo, setReplaceTo] = useState('')
+    isOpen: boolean;
+    columnIndex: number;
+    initialValue: string;
+  } | null>(null);
+  const [replaceFrom, setReplaceFrom] = useState("");
+  const [replaceTo, setReplaceTo] = useState("");
+
+  const ROW_HEIGHT = 28;
+  const HEADER_HEIGHT = 42;
+  const [containerHeight, setContainerHeight] = useState(0);
 
   useEffect(() => {
-    setEditorRows(rows)
-  }, [rows])
+    const el = containerRef.current;
+    if (!el) return;
+
+    const resizeObserver = new ResizeObserver(() => {
+      setContainerHeight(el.clientHeight);
+    });
+    resizeObserver.observe(el);
+    setContainerHeight(el.clientHeight);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  const listHeight = Math.max(0, containerHeight - HEADER_HEIGHT);
+
+  const minTableWidth = useMemo(() => {
+    const minColWidth = 140;
+    return Math.max(headers.length * minColWidth, 600);
+  }, [headers.length]);
+
+  const Row = ({ index, style, ariaAttributes }: RowComponentProps) => {
+    const row = editorRows[index];
+    const rowClass = index % 2 === 0 ? "bg-white" : "bg-[#f9f9f8]";
+
+    return (
+      <div
+        {...ariaAttributes}
+        style={style}
+        className={`${rowClass} flex items-center`}
+        onClick={() => setContextMenu(null)}
+      >
+        <div className="px-2 py-1 text-[#605e5c]" style={{ minWidth: 48 }}>
+          {index + 1}
+        </div>
+        {headers.map((header, colIndex) => (
+          <div
+            key={`${index}-${header}`}
+            className="px-2 py-1 border-l border-[#e1dfdd] text-[#323130] whitespace-nowrap"
+            style={{ minWidth: 140 }}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              setContextMenu({
+                clientX: event.clientX,
+                clientY: event.clientY,
+                rowIndex: index,
+                colIndex,
+              });
+            }}
+          >
+            {row?.[colIndex] ?? ""}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  useEffect(() => {
+    setEditorRows(rows);
+  }, [rows]);
 
   const handleCopyCell = (rowIndex: number, colIndex: number) => {
-    const value = editorRows[rowIndex]?.[colIndex] ?? ''
-    if (!value) return
+    const value = editorRows[rowIndex]?.[colIndex] ?? "";
+    if (!value) return;
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(value).catch(() => { })
+      navigator.clipboard.writeText(value).catch(() => {});
     }
-  }
+  };
 
   const handleDrillDown = (rowIndex: number) => {
-    const row = editorRows[rowIndex]
-    if (!row) return
-    setEditorRows([row])
-  }
+    const row = editorRows[rowIndex];
+    if (!row) return;
+    setEditorRows([row]);
+  };
 
   const handleOpenReplace = (rowIndex: number, colIndex: number) => {
-    const currentValue = editorRows[rowIndex]?.[colIndex] ?? ''
-    setReplaceFrom(currentValue)
-    setReplaceTo('')
+    const currentValue = editorRows[rowIndex]?.[colIndex] ?? "";
+    setReplaceFrom(currentValue);
+    setReplaceTo("");
     setReplaceDialog({
       isOpen: true,
       columnIndex: colIndex,
       initialValue: currentValue,
-    })
-  }
+    });
+  };
 
   const handleApplyReplace = () => {
-    if (!replaceDialog) return
-    const { columnIndex } = replaceDialog
-    const from = replaceFrom
-    const to = replaceTo
+    if (!replaceDialog) return;
+    const { columnIndex } = replaceDialog;
+    const from = replaceFrom;
+    const to = replaceTo;
     setEditorRows((prev) =>
       prev.map((row) => {
-        const copy = [...row]
+        const copy = [...row];
         if (copy[columnIndex] === from) {
-          copy[columnIndex] = to
+          copy[columnIndex] = to;
         }
-        return copy
+        return copy;
       }),
-    )
-    setReplaceDialog(null)
-  }
+    );
+    setReplaceDialog(null);
+  };
 
   return (
     <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-40">
@@ -86,14 +147,22 @@ export function QueryEditorModal({
         {/* Ribbon area */}
         <header className="border-b border-[#e1dfdd] bg-white">
           <div className="flex items-center h-8 px-3 gap-2 text-sm">
-            <span className="mr-4 text-sm text-[#323130] cursor-pointer">File</span>
+            <span className="mr-4 text-sm text-[#323130] cursor-pointer">
+              File
+            </span>
             <button className="px-3 text-sm border-b-2 border-[#107c10] font-semibold text-[#107c10] h-full">
               Home
             </button>
-            <button className="px-3 text-sm text-[#323130] h-full">Transform</button>
-            <button className="px-3 text-sm text-[#323130] h-full">Add column</button>
+            <button className="px-3 text-sm text-[#323130] h-full">
+              Transform
+            </button>
+            <button className="px-3 text-sm text-[#323130] h-full">
+              Add column
+            </button>
             <button className="px-3 text-sm text-[#323130] h-full">View</button>
-            <button className="px-3 text-sm text-[#323130] h-full">Tools</button>
+            <button className="px-3 text-sm text-[#323130] h-full">
+              Tools
+            </button>
             <button className="px-3 text-sm text-[#323130] h-full">Help</button>
             <button
               className="ml-auto h-7 w-7 flex items-center justify-center rounded hover:bg-[#e1dfdd] text-[#605e5c]"
@@ -142,52 +211,46 @@ export function QueryEditorModal({
               onClick={() => setContextMenu(null)}
             >
               <div className="border border-[#e1dfdd]">
-                <table className="min-w-full border-collapse text-xs">
-                  <thead className="bg-[#f3f2f1]">
-                    <tr>
-                      <th className="px-2 py-1 border-b border-r border-[#e1dfdd] text-left text-[#605e5c]">
-                        #
-                      </th>
-                      {headers.map((header) => (
-                        <th
-                          key={header}
-                          className="px-2 py-1 border-b border-r border-[#e1dfdd] text-left font-semibold text-[#323130] whitespace-nowrap"
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {editorRows.map((row, rowIndex) => (
-                      <tr
-                        key={rowIndex}
-                        className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-[#f9f9f8]'}
-                      >
-                        <td className="px-2 py-1 border-b border-r border-[#e1dfdd] text-[#605e5c]">
-                          {rowIndex + 1}
-                        </td>
-                        {headers.map((header, colIndex) => (
-                          <td
-                            key={`${rowIndex}-${header}`}
-                            className="px-2 py-1 border-b border-r border-[#e1dfdd] text-[#323130] whitespace-nowrap"
-                            onContextMenu={(event) => {
-                              event.preventDefault()
-                              setContextMenu({
-                                clientX: event.clientX,
-                                clientY: event.clientY,
-                                rowIndex,
-                                colIndex,
-                              })
-                            }}
-                          >
-                            {row[colIndex] ?? ''}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="flex bg-[#f3f2f1] border-b border-[#e1dfdd]">
+                  <div
+                    className="px-2 py-1 text-left text-[#605e5c]"
+                    style={{ minWidth: 48 }}
+                  >
+                    #
+                  </div>
+                  {headers.map((header) => (
+                    <div
+                      key={header}
+                      className="px-2 py-1 text-left font-semibold text-[#323130] whitespace-nowrap"
+                      style={{ minWidth: 140 }}
+                      onContextMenu={(event) => {
+                        if (!headers.length) return;
+                        event.preventDefault();
+                        setContextMenu({
+                          clientX: event.clientX,
+                          clientY: event.clientY,
+                          rowIndex: 0,
+                          colIndex: headers.indexOf(header),
+                        });
+                      }}
+                    >
+                      {header}
+                    </div>
+                  ))}
+                </div>
+                <div
+                  className="overflow-auto"
+                  style={{ minWidth: minTableWidth }}
+                >
+                  <List
+                    defaultHeight={listHeight}
+                    rowCount={editorRows.length}
+                    rowHeight={ROW_HEIGHT}
+                    rowComponent={Row}
+                    rowProps={{}}
+                    style={{ width: "100%", height: listHeight }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -233,8 +296,8 @@ export function QueryEditorModal({
               className="w-full text-left px-3 py-1 hover:bg-[#e5f0ff]"
               type="button"
               onClick={() => {
-                handleCopyCell(contextMenu.rowIndex, contextMenu.colIndex)
-                setContextMenu(null)
+                handleCopyCell(contextMenu.rowIndex, contextMenu.colIndex);
+                setContextMenu(null);
               }}
             >
               Copy
@@ -250,8 +313,8 @@ export function QueryEditorModal({
               className="w-full text-left px-3 py-1 hover:bg-[#e5f0ff]"
               type="button"
               onClick={() => {
-                handleOpenReplace(contextMenu.rowIndex, contextMenu.colIndex)
-                setContextMenu(null)
+                handleOpenReplace(contextMenu.rowIndex, contextMenu.colIndex);
+                setContextMenu(null);
               }}
             >
               Replace Values...
@@ -260,8 +323,8 @@ export function QueryEditorModal({
               className="w-full text-left px-3 py-1 hover:bg-[#e5f0ff]"
               type="button"
               onClick={() => {
-                handleDrillDown(contextMenu.rowIndex)
-                setContextMenu(null)
+                handleDrillDown(contextMenu.rowIndex);
+                setContextMenu(null);
               }}
             >
               Drill Down
@@ -318,6 +381,5 @@ export function QueryEditorModal({
         )}
       </div>
     </div>
-  )
+  );
 }
-
